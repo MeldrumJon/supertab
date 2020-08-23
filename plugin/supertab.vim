@@ -143,6 +143,14 @@ set cpo&vim
     let g:SuperTabCompleteCase = 'inherit'
   endif
 
+  if !exists("g:SuperTabChordedEscapes")
+    let g:SuperTabChordedEscapes = []
+  endif
+
+  if !exists("g:SuperTabChordedTimeoutLen")
+    let g:SuperTabChordedTimeoutLen = 100
+  endif
+
 " }}}
 
 " Script Variables {{{
@@ -663,6 +671,7 @@ function! s:EnableNoCompleteAfterReset() " {{{
 
   " short version of s:CaptureKeyPresses
   if !exists('b:capturing') || !b:capturing
+    let b:savedTimeout = &timeoutlen
     let b:capturing = 1
     let b:capturing_start = col('.')
     let b:captured = {
@@ -696,6 +705,8 @@ endfunction " }}}
 
 function! s:CaptureKeyPresses() " {{{
   if !exists('b:capturing') || !b:capturing
+    let b:savedTimeout = &timeoutlen
+    let &timeoutlen=g:SuperTabChordedTimeoutLen
     let b:capturing = 1
     let b:capturing_start = col('.')
     " save any previous mappings
@@ -708,6 +719,9 @@ function! s:CaptureKeyPresses() " {{{
       let existing = s:CaptureKeyMap(c)
       let b:captured[c] = existing
       exec 'imap <buffer> ' . c . ' <c-r>=<SID>CompletionReset("' . c . '")<cr>'
+    endfor
+    for echord in g:SuperTabChordedEscapes
+        exec 'imap <buffer> ' . echord . ' <esc>'
     endfor
     imap <buffer> <bs> <c-r>=<SID>CompletionReset("\<lt>bs>")<cr>
     imap <buffer> <c-h> <c-r>=<SID>CompletionReset("\<lt>c-h>")<cr>
@@ -758,9 +772,13 @@ endfunction " }}}
 
 function! s:ReleaseKeyPresses() " {{{
   if exists('b:capturing') && b:capturing
+    let &timeoutlen=b:savedTimeout
     let b:capturing = 0
     for c in keys(b:captured)
       exec 'iunmap <buffer> ' . c
+    endfor
+    for echord in g:SuperTabChordedEscapes
+        exec 'iunmap <buffer> ' . echord
     endfor
 
     " restore any previous mappings
